@@ -1,0 +1,38 @@
+name: API Regression Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test-api:
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout do Código
+      uses: actions/checkout@v4
+
+    - name: Configurar Node.js
+      uses: actions/checkout@v4
+      with:
+        node-version: 18
+
+    - name: Instalar Dependências
+      run: npm ci
+
+    - name: Instalar Navegadores do Playwright
+      run: npx playwright install --with-deps
+
+    - name: Executar Testes de API
+      run: npx playwright test
+
+    - name: Publicar Relatório de Testes (HTML Report)
+      uses: actions/upload-artifact@v4
+      if: ${{ !cancelled() }}
+      with:
+        name: playwright-api-report
+        path: playwright-report/
+        retention-days: 30
