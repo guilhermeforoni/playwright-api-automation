@@ -1,24 +1,36 @@
-//O test gerencia o ciclo de vida dos testes (test.beforeAll, test.describe, etc.),
+// O test gerencia o ciclo de vida dos testes (test.beforeAll, test.describe, etc.),
 // enquanto o expect realiza as asserções de contrato HTTP (status code, body, headers).
 import { test, expect } from '@playwright/test';
-//Importa a função que cria um objeto de produto com um nome dinâmico 
-// para garantir que o teste nunca falhe por duplicidade de dados no banco do ServeRest.
+// Importa a biblioteca Faker para gerar dados dinâmicos e isolados de utilizador
+import { faker } from '@faker-js/faker/locale/pt_BR';
+// Importa as funções que criam objetos de produto com nomes dinâmicos
 import { generateRandomProduct, generateUpdatedProduct } from '../fixtures/productData';
-
-
 
 test.describe('ServeRest - Testes de API de Produtos (CRUD Completo)', () => {
   const baseURL = 'https://serverest.dev';
   let authToken: string;
 
-  // BEFORE ALL: Executa UMA vez antes de todos os testes para gerar o Token JWT
-  // O atributo `data` envia o corpo (payload) em formato JSON para o endpoint.
-  //
+  // BEFORE ALL: Cria um utilizador administrador dinâmico e obtém o Token JWT em tempo de execução
   test.beforeAll(async ({ request }) => {
+    const userEmail = faker.internet.email();
+    const userPassword = faker.internet.password();
+
+    // 1. Cadastra o novo utilizador administrador na ServeRest
+    const createUserResponse = await request.post(`${baseURL}/usuarios`, {
+      data: {
+        nome: faker.person.fullName(),
+        email: userEmail,
+        password: userPassword,
+        administrador: 'true'
+      }
+    });
+    expect(createUserResponse.status()).toBe(201);
+
+    // 2. Faz o login com as credenciais recém-criadas para extrair o token
     const loginResponse = await request.post(`${baseURL}/login`, {
       data: {
-        email: 'fulano@qa.com',
-        password: 'teste'
+        email: userEmail,
+        password: userPassword
       }
     });
 
@@ -91,13 +103,13 @@ test.describe('ServeRest - Testes de API de Produtos (CRUD Completo)', () => {
       headers: { 'Authorization': authToken }
     });
 
-    // 3. Valida se o registro foi removido com sucesso
+    // 3. Valida se o registo foi removido com sucesso
     expect(deleteResponse.status()).toBe(200);
     const deleteBody = await deleteResponse.json();
     expect(deleteBody.message).toBe('Registro excluído com sucesso');
   });
 
-// CENÁRIO 4: Validação Negativa (Segurança)
+  // CENÁRIO 4: Validação Negativa (Segurança)
   test('Deve retornar erro ao tentar cadastrar produto sem Token (POST)', async ({ request }) => {
     const newProduct = generateRandomProduct();
 
